@@ -5,8 +5,14 @@ import locale
 import sys
 import subprocess
 
-# Nastavení locale pro správné parsování čísel
-locale.setlocale(locale.LC_NUMERIC, 'cs_CZ.UTF-8')
+# Pokus o nastavení locale, s fallbackem na výchozí nastavení
+try:
+    locale.setlocale(locale.LC_NUMERIC, 'en_US.UTF-8')
+except locale.Error:
+    try:
+        locale.setlocale(locale.LC_NUMERIC, '')  # Použije výchozí systémové nastavení
+    except locale.Error:
+        pass  # Pokud ani to nefunguje, použijeme výchozí Python zpracování
 
 JSON_FILE_PATH = 'data.json'
 
@@ -28,13 +34,13 @@ def save_json(data, file_path):
 
 def parse_price(price_str):
     try:
-        return locale.atof(price_str)
-    except ValueError:
         return float(price_str.replace(',', '.'))
+    except ValueError:
+        return 0.0
 
 
 def format_price(price_float):
-    return locale.format_string('%.2f', price_float, grouping=True)
+    return f"{price_float:.2f}"
 
 
 def edit_value(key, value, prefix=''):
@@ -48,9 +54,10 @@ def edit_value(key, value, prefix=''):
     elif isinstance(value, bool):
         return st.checkbox(key, value, key=f"{prefix}_{key}")
     elif isinstance(value, (int, float)):
-        return st.number_input(key, value=value, key=f"{prefix}_{key}")
+        return st.number_input(key, value=value, format="%.2f" if isinstance(value, float) else "%d",
+                               key=f"{prefix}_{key}")
     else:
-        return st.text_input(key, value, key=f"{prefix}_{key}")
+        return st.text_input(key, str(value), key=f"{prefix}_{key}")
     return value
 
 
@@ -80,7 +87,6 @@ def main():
         if str(selected_size) in data['variables']:
             variables = data['variables'][str(selected_size)]
 
-            # Vytvoření slovníku pro mapování názvů sekcí na jejich klíče
             section_names = {variables[key]['name']['cs']: key for key in variables.keys() if
                              'name' in variables[key] and 'cs' in variables[key]['name']}
 
